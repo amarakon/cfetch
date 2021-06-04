@@ -135,7 +135,7 @@ static char *get_title() {
     title_length = strlen(hostname) + strlen(username) + 1;
 
     char *title = malloc(BUF_SIZE);
-    snprintf(title, BUF_SIZE, COLOR"%s\e[0m@"COLOR"%s", username, hostname);
+    snprintf(title, BUF_SIZE, TITLECOLOR"%s\e[0m@"TITLECOLOR"%s", username, hostname);
 
     return title;
 }
@@ -298,9 +298,9 @@ static char *get_shell() {
     char *shell_name = strrchr(getenv("SHELL"), '/');
 
     if(shell_name == NULL) /* if $SHELL doesn't have a '/' */
-        strncpy(shell, shell_path, BUF_SIZE); /* copy the whole thing over */
+        strncpy(shell, shell_path, BUF_SIZE - 1); /* copy the whole thing over */
     else
-        strncpy(shell, shell_name + 1, BUF_SIZE); /* o/w copy past the last '/' */
+        strncpy(shell, shell_name + 1, BUF_SIZE - 1); /* o/w copy past the last '/' */
 
     return shell;
 }
@@ -341,7 +341,7 @@ static char *get_resolution() {
                 modes = fopen(modes_file_name, "r");
                 if (modes != NULL) {
                     if (getline(&line, &len, modes) != -1) {
-                        strncpy(resolution, line, BUF_SIZE);
+                        strncpy(resolution, line, BUF_SIZE - 1);
                         remove_newline(resolution);
 
                         free(line);
@@ -389,10 +389,10 @@ static char *get_terminal() {
         free(prop);
     } else {
 terminal_fallback:
-        strncpy(terminal, getenv("TERM"), BUF_SIZE); /* fallback to old method */
+        strncpy(terminal, getenv("TERM"), BUF_SIZE - 1); /* fallback to old method */
         /* in tty, $TERM is simply returned as "linux"; in this case get actual tty name */
         if (strcmp(terminal, "linux") == 0) {
-            strncpy(terminal, ttyname(STDIN_FILENO), BUF_SIZE);
+            strncpy(terminal, ttyname(STDIN_FILENO), BUF_SIZE - 1);
         }
     }
 
@@ -500,10 +500,10 @@ static char *find_gpu(int index) {
     dev = pacc->devices;
 
     while(dev != NULL) {
-        pci_fill_info(dev, PCI_FILL_IDENT);
+        pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_BASES | PCI_FILL_CLASS);
         device_class = pci_lookup_name(pacc, buffer, sizeof(buffer), PCI_LOOKUP_CLASS, dev->device_class);
         if(strcmp("VGA compatible controller", device_class) == 0 || strcmp("3D controller", device_class) == 0) {
-            strncpy(gpu, pci_lookup_name(pacc, buffer, sizeof(buffer), PCI_LOOKUP_DEVICE | PCI_LOOKUP_VENDOR, dev->vendor_id, dev->device_id), BUF_SIZE);
+            strncpy(gpu, pci_lookup_name(pacc, buffer, sizeof(buffer), PCI_LOOKUP_DEVICE | PCI_LOOKUP_VENDOR, dev->vendor_id, dev->device_id), BUF_SIZE - 1);
             if(gpu_index == index) {
                 found = true;
                 break;
@@ -717,13 +717,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < COUNT(LOGO); i++) {
         // If we've run out of information to show...
         if(i >= COUNT(config) - offset) // just print the next line of the logo
-            printf(COLOR"%s\n", LOGO[i]);
+            printf(LOGOCOLOR"%s\n", LOGO[i]);
         else {
             // Otherwise, we've got a bit of work to do.
             char *label = config[i+offset].label,
                  *value = get_value(config[i+offset], read_cache, cache_data);
             if (strcmp(value, "") != 0) { // check if value is an empty string
-                printf(COLOR"%s%s\e[0m%s\n", LOGO[i], label, value); // just print if not empty
+                printf(LOGOCOLOR"%s"COLOR"%s\e[0m%s\n", LOGO[i], label, value); // just print if not empty
             } else {
                 if (strcmp(label, "") != 0) { // check if label is empty, otherwise it's a spacer
                     ++offset; // print next line of information
@@ -731,7 +731,7 @@ int main(int argc, char *argv[]) {
                     label = config[i+offset].label; // read new label and value
                     value = get_value(config[i+offset], read_cache, cache_data);
                 }
-                printf(COLOR"%s%s\e[0m%s\n", LOGO[i], label, value);
+                printf(LOGOCOLOR"%s"COLOR"%s\e[0m%s\n", LOGO[i], label, value);
             }
             free(value);
 
