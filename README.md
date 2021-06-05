@@ -4,7 +4,7 @@ paleofetch
 A rewrite of [neofetch](https://github.com/dylanaraps/neofetch) in C.
 Currently only supports Linux and Xorg.<br/><br/>
 
-I am actively maintining this fork by adding more features, fixing bugs, and supporting more distros.
+I am actively maintaining this fork by adding more features, fixing bugs, and supporting more distros.
 
 As of now I have:
 * Corrected all compiler warnings running on GCC 11.1
