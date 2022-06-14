@@ -30,4 +30,4 @@ Cfetch also has these features:
 * Cached information
 
 ---
-### \[[Dependencies](https://github.com/Amarakon55/Cfetch/wiki/Dependencies)\] \[[(Un)Installation](https://github.com/Amarakon55/Cfetch/wiki/(Un)Installation)\] \[[Configuration](https://github.com/Amarakon55/Cfetch/wiki/Configuration)\] \[[Usage](https://github.com/Amarakon55/Cfetch/wiki/Usage)\]
+### \[[Dependencies](https://github.com/amarakon/Cfetch/wiki/Dependencies)\] \[[(Un)Installation](https://github.com/amarakon/Cfetch/wiki/(Un)Installation)\] \[[Configuration](https://github.com/amarakon/Cfetch/wiki/Configuration)\] \[[Usage](https://github.com/amarakon/Cfetch/wiki/Usage)\]
