@@ -1,17 +1,18 @@
+PREFIX = /usr/local
 CFLAGS=-O2 -Wall -Wextra -lX11 -lpci
-PREFIX=$(HOME)/.local
 CACHE=$(shell if [ "$$XDG_CACHE_HOME" ]; then echo "$$XDG_CACHE_HOME"; else echo "$$HOME"/.cache; fi)
 
-all: paleofetch
+all: cfetch
 
 clean:
-	rm -f paleofetch $(CACHE)/paleofetch
+	rm -f cfetch $(CACHE)/cfetch
 
-paleofetch: paleofetch.c paleofetch.h config.h
-	$(eval battery_path := $(shell ./config_scripts/battery_config.sh))
-	$(CC) paleofetch.c -o paleofetch $(CFLAGS) -D $(battery_path)
-	strip paleofetch
+cfetch: cfetch.c cfetch.h config.h
+	$(CC) cfetch.c -o cfetch $(CFLAGS)
+	strip cfetch
 
-install: paleofetch
-	mkdir -p $(PREFIX)/bin
-	install ./paleofetch $(PREFIX)/bin/paleofetch
+install: cfetch
+	install ./cfetch ${PREFIX}/bin/cfetch
+
+uninstall:
+	rm ${PREFIX}/bin/cfetch

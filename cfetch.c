@@ -16,7 +16,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 
-#include "paleofetch.h"
+#include "cfetch.h"
 #include "config.h"
 
 #define BUF_SIZE 150
@@ -25,7 +25,7 @@
 #define halt_and_catch_fire(fmt, ...) \
     do { \
         if(status != 0) { \
-            fprintf(stderr, "paleofetch: " fmt "\n", ##__VA_ARGS__); \
+            fprintf(stderr, "cfetch: " fmt "\n", ##__VA_ARGS__); \
             exit(status); \
         } \
     } while(0)
@@ -135,7 +135,7 @@ static char *get_title() {
     title_length = strlen(hostname) + strlen(username) + 1;
 
     char *title = malloc(BUF_SIZE);
-    snprintf(title, BUF_SIZE, TITLECOLOR"%s\e[0m@"TITLECOLOR"%s", username, hostname);
+    snprintf(title, BUF_SIZE, USERCOLOR"%s\e[0;37m@"HOSTCOLOR"%s", username, hostname);
 
     return title;
 }
@@ -158,23 +158,15 @@ static char *get_os() {
         status = -1;
         halt_and_catch_fire("unable to open /etc/os-release");
     }
-
     while (getline(&line, &len, os_release) != -1) {
-        if (sscanf(line, "NAME=\"%[^\"]+", name) > 0) break;
+        if (sscanf(line, "PRETTY_NAME=""%[^\"]", name) > 0) break;
     }
-
     free(line);
     fclose(os_release);
-    snprintf(os, BUF_SIZE, "%s %s", name, uname_info.machine);
+    snprintf(os, BUF_SIZE, "%s", name);
     free(name);
-
+    os[strlen(os)-1] = '\0';
     return os;
-}
-
-static char *get_kernel() {
-    char *kernel = malloc(BUF_SIZE);
-    strncpy(kernel, uname_info.release, BUF_SIZE);
-    return kernel;
 }
 
 static char *get_host() {
@@ -210,6 +202,13 @@ model_fallback:
     return NULL;
 }
 
+
+static char *get_kernel() {
+    char *kernel = malloc(BUF_SIZE);
+    strncpy(kernel, uname_info.release, BUF_SIZE);
+    return kernel;
+}
+
 static char *get_uptime() {
     long seconds = my_sysinfo.uptime;
     struct { char *name; int secs; } units[] = {
@@ -232,37 +231,6 @@ static char *get_uptime() {
     return uptime;
 }
 
-// returns "<Battery Percentage>% [<Charging | Discharging | Unknown>]"
-// Credit: allisio - https://gist.github.com/allisio/1e850b93c81150124c2634716fbc4815
-static char *get_battery_percentage() {
-  int battery_capacity;
-  FILE *capacity_file, *status_file;
-  char battery_status[12] = "Unknown";
-
-  if ((capacity_file = fopen(BATTERY_DIRECTORY "/capacity", "r")) == NULL) {
-    status = ENOENT;
-    halt_and_catch_fire("Unable to get battery information");
-  }
-
-  fscanf(capacity_file, "%d", &battery_capacity);
-  fclose(capacity_file);
-
-  if ((status_file = fopen(BATTERY_DIRECTORY "/status", "r")) != NULL) {
-    fscanf(status_file, "%s", battery_status);
-    fclose(status_file);
-  }
-
-  // max length of resulting string is 19
-  // one byte for padding incase there is a newline
-  // 100% [Discharging]
-  // 1234567890123456789
-  char *battery = malloc(20);
-
-  snprintf(battery, 20, "%d%% [%s]", battery_capacity, battery_status);
-
-  return battery;
-}
-
 static char *get_packages(const char* dirname, const char* pacname, int num_extraneous) {
     int num_packages = 0;
     DIR * dirp;
@@ -272,7 +240,7 @@ static char *get_packages(const char* dirname, const char* pacname, int num_extr
 
     if(dirp == NULL) {
         status = -1;
-        halt_and_catch_fire("You may not have %s installed", dirname);
+        halt_and_catch_fire("The directory %s does not exist. Package count failed.", dirname);
     }
 
     while((entry = readdir(dirp)) != NULL) {
@@ -288,11 +256,95 @@ static char *get_packages(const char* dirname, const char* pacname, int num_extr
     return packages;
 }
 
-static char *get_packages_pacman() {
-    return get_packages("/var/lib/pacman/local", "pacman", 0);
+static char *get_packages_pacman_selected() {
+    int num_packages = 0;
+
+    FILE *proc = popen("pacman -Qe | wc -l", "r" );
+    fscanf(proc, "%d", &num_packages);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d (%s)", num_packages, "Pacman");
+
+    return packages;
 }
 
-static char *get_shell() {
+static char *get_packages_pacman_total() {
+    return get_packages("/var/db/pacman/local", "Pacman", 0);
+}
+
+static char *get_packages_portage_selected() {
+    int num_packages = 0;
+
+    FILE *proc = popen("wc -l /var/lib/portage/world | cut -d ' ' -f1", "r" );
+    fscanf(proc, "%d", &num_packages);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d (%s)", num_packages, "Portage");
+
+    return packages;
+}
+
+static char *get_packages_portage_total() {
+    int num_packages = 0;
+
+    FILE *proc = popen("ls -d /var/db/pkg/*/* | grep -v '/var/db/pkg/virtual/' | wc -l", "r" );
+    fscanf(proc, "%d", &num_packages);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d (%s)", num_packages, "Portage");
+    
+    return packages;
+}
+
+static char *get_packages_dpkg_selected() {
+    int num_packages = 0;
+
+    FILE *proc = popen("aptitude search '~i !~M' | wc -l", "r" );
+    fscanf(proc, "%d", &num_packages);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d (%s)", num_packages, "dpkg");
+
+    return packages;
+}
+
+static char *get_packages_dpkg_total() {
+    int num_packages = 0;
+
+    FILE *proc = popen("dpkg -l | wc -l", "r");
+    fscanf(proc, "%d", &num_packages);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d (%s)", num_packages, "dpkg");
+
+    return packages;
+}
+
+static char *get_packages_dnf_selected() {
+    int num_packages = 0;
+
+    FILE *proc = popen("dnf history userinstalled | tail --lines=+2 | wc -l", "r" );
+    fscanf(proc, "%d", &num_packages);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d (%s)", num_packages, "DNF");
+
+    return packages;
+}
+
+static char *get_packages_dnf_total() {
+    int num_packages = 0;
+
+    FILE *proc = popen("dnf list installed | tail --lines=+2 | wc -l", "r");
+    fscanf(proc, "%d", &num_packages);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d (%s)", num_packages, "DNF");
+
+    return packages;
+}
+
+static char *get_shell_default() {
     char *shell = malloc(BUF_SIZE);
     char *shell_path = getenv("SHELL");
     char *shell_name = strrchr(getenv("SHELL"), '/');
@@ -303,6 +355,18 @@ static char *get_shell() {
         strncpy(shell, shell_name + 1, BUF_SIZE - 1); /* o/w copy past the last '/' */
 
     return shell;
+}
+
+static char *get_shell_running() {
+    int running_shell = 0;
+
+    FILE *proc = popen("wc -l /var/lib/portage/world | cut -d ' ' -f1", "r" );
+    fscanf(proc, "%d", &running_shell);
+
+    char *packages = malloc(BUF_SIZE);
+    snprintf(packages, BUF_SIZE, "%d", running_shell);
+
+    return packages;
 }
 
 static char *get_resolution() {
@@ -576,7 +640,7 @@ static char *get_memory() {
     int percentage = (int) (100 * (used_memory / (double) total_memory));
 
     char *memory = malloc(BUF_SIZE);
-    snprintf(memory, BUF_SIZE, "%dMiB / %dMiB (%d%%)", used_memory, total_memory, percentage);
+    snprintf(memory, BUF_SIZE, "%dMiB/%dMiB (%d%%)", used_memory, total_memory, percentage);
 
     return memory;
 }
@@ -639,9 +703,9 @@ char *get_cache_file() {
     char *cache_file = malloc(BUF_SIZE);
     char *env = getenv("XDG_CACHE_HOME");
     if(env == NULL)
-        snprintf(cache_file, BUF_SIZE, "%s/.cache/paleofetch", getenv("HOME"));
+        snprintf(cache_file, BUF_SIZE, "%s/.cache/cfetch", getenv("HOME"));
     else
-        snprintf(cache_file, BUF_SIZE, "%s/paleofetch", env);
+        snprintf(cache_file, BUF_SIZE, "%s/cfetch", env);
 
     return cache_file;
 }
@@ -654,7 +718,7 @@ char *search_cache(char *cache_data, char *label) {
     char *start = strstr(cache_data, label);
     if(start == NULL) {
         status = ENODATA;
-        halt_and_catch_fire("cache miss on key '%s'; need to --recache?", label);
+        halt_and_catch_fire("cache miss on key '%s'; recache with `--recache`", label);
     }
     start += strlen(label);
     char *end = strchr(start, ';');
@@ -717,13 +781,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < COUNT(LOGO); i++) {
         // If we've run out of information to show...
         if(i >= COUNT(config) - offset) // just print the next line of the logo
-            printf(LOGOCOLOR"%s\n", LOGO[i]);
+            printf("%s\n", LOGO[i]);
         else {
             // Otherwise, we've got a bit of work to do.
             char *label = config[i+offset].label,
                  *value = get_value(config[i+offset], read_cache, cache_data);
             if (strcmp(value, "") != 0) { // check if value is an empty string
-                printf(LOGOCOLOR"%s"COLOR"%s\e[0m%s\n", LOGO[i], label, value); // just print if not empty
+                printf("%s"COLOR"%s\e[0m%s\n", LOGO[i], label, value); // just print if not empty
             } else {
                 if (strcmp(label, "") != 0) { // check if label is empty, otherwise it's a spacer
                     ++offset; // print next line of information
@@ -731,7 +795,7 @@ int main(int argc, char *argv[]) {
                     label = config[i+offset].label; // read new label and value
                     value = get_value(config[i+offset], read_cache, cache_data);
                 }
-                printf(LOGOCOLOR"%s"COLOR"%s\e[0m%s\n", LOGO[i], label, value);
+                printf("%s"COLOR"%s\e[0m%s\n", LOGO[i], label, value);
             }
             free(value);
 
