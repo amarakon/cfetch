@@ -1,6 +1,5 @@
 // This was taken from neofetch
 char *LOGO[] = {
-"                                                              ",
 "\e[0;37m         -/oyddmdhs+:.              \e[0;30m│ ",
 "\e[0;37m     -o\e[1;35mdNMMMMMMMMNNmhy+\e[0;37m-`           \e[0;30m│ ",
 "\e[0;37m   -y\e[1;35mNMMMMMMMMMMMNNNmmdhy\e[0;37m+-         \e[0;30m│ ",

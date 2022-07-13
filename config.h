@@ -13,7 +13,6 @@
 #define CONFIG \
 { \
    /* name                      function                 	cached */	\
-    SPACER \
     { "",			get_title,               	false	},	\
     { "",			get_bar,                 	true	},	\
     { "OS: ",			get_os,                  	true	}, 	\
